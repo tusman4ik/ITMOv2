@@ -11,9 +11,12 @@
       },
       "models": {
         "itmo-agent": {
-          "name": "ITMO local 64k",
+          "name": "ITMO local 8k nothink",
+          "options": {
+            "reasoningEffort": "none"
+          },
           "limit": {
-            "context": 65536,
+            "context": 8192,
             "output": 4096
           }
         }
