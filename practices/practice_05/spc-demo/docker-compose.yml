@@ -1,0 +1,54 @@
+name: spc-demo-stand
+
+networks:
+  stand:
+    name: spc-demo-stand
+
+services:
+  code-runner:
+    build:
+      context: .
+      dockerfile: services/code-runner/Dockerfile
+    image: spc/code-runner:demo
+    container_name: spc-code-runner-demo
+    ports:
+      - "8080:8080"
+    privileged: true
+    cgroup: private
+    networks:
+      - stand
+    restart: unless-stopped
+
+  task-service:
+    build:
+      context: .
+      dockerfile: services/task-service/Dockerfile
+    image: spc/task-service:demo
+    container_name: spc-task-service-demo
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_PORT: "8081"
+      CODE_RUNNER_BASE_URL: http://code-runner:8080
+      TASK_SERVICE_PUBLIC_BASE_URL: http://task-service:8081
+      DEMO_BASE_URL: http://host.docker.internal:8090
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - stand
+    depends_on:
+      code-runner:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: services/frontend
+      dockerfile: Dockerfile
+    container_name: spc-frontend-demo
+    ports:
+      - "5173:80"
+    networks:
+      - stand
+    restart: unless-stopped
+

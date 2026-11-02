@@ -1,0 +1,3 @@
+# Required words (normal forms, one per line). Lines starting with # are comments.
+дерево
+море

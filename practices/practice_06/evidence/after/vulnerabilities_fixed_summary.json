@@ -1,0 +1,75 @@
+{
+  "unauth_profile": {
+    "status": 401,
+    "data": {
+      "error": "unauthorized"
+    }
+  },
+  "sqli_profile_after": {
+    "status": 400,
+    "data": {
+      "error": "invalid id"
+    }
+  },
+  "idor_profile_after": {
+    "status": 403,
+    "data": {
+      "error": "forbidden"
+    }
+  },
+  "sqli_search_after": {
+    "status": 200,
+    "data": []
+  },
+  "role_spoofing_after": {
+    "status": 403,
+    "data": {
+      "error": "staff only"
+    }
+  },
+  "price_tampering_after": {
+    "status": 201,
+    "data": {
+      "id": 3,
+      "owner": 1,
+      "product": "chair",
+      "price": 5000
+    }
+  },
+  "path_traversal_after": {
+    "status": 400,
+    "data": {
+      "error": "invalid filename"
+    }
+  },
+  "file_idor_after": {
+    "status": 403,
+    "data": {
+      "error": "forbidden"
+    }
+  },
+  "stored_xss_after": {
+    "status": 200,
+    "html": "<html><body><p>&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;</p></body></html>"
+  },
+  "debug_logs_customer_after": {
+    "status": 403,
+    "data": {
+      "error": "staff only"
+    }
+  },
+  "assistant_execute_after": {
+    "delete_tree": {
+      "status": 403,
+      "data": {
+        "error": "forbidden tool"
+      }
+    },
+    "export_profiles": {
+      "status": 403,
+      "data": {
+        "error": "forbidden tool"
+      }
+    }
+  }
+}

@@ -114,5 +114,133 @@ class SandboxTest(unittest.TestCase):
             self.assertEqual(sentinel.read_text(), "keep")
 
 
+class SecurityTest(unittest.TestCase):
+    def setUp(self):
+        self.shop = Shop()
+        self.addCleanup(self.shop.close)
+
+    def request(self, method, path, body=None, headers=None):
+        with self.shop.lock:
+            return self.shop.dispatch(method, path, body or {}, headers or {})
+
+    def login(self, username="alice", password="learn-alice"):
+        status, result = self.request("POST", "/login", {"username": username, "password": password})
+        self.assertEqual(status, 200)
+        return {"X-Token": result["token"]}
+
+    def test_unauthenticated_access_blocked(self):
+        endpoints = [
+            ("GET", "/profile"),
+            ("GET", "/search"),
+            ("GET", "/orders"),
+            ("POST", "/orders", {"product": "chair"}),
+            ("GET", "/admin/export"),
+            ("GET", "/files"),
+            ("GET", "/debug/logs"),
+            ("POST", "/reviews", {"product": "chair", "text": "nice"}),
+            ("GET", "/assistant/context"),
+            ("POST", "/assistant/execute", {"decision": {"tool": "read_file", "arguments": {"path": "files/alice/receipt.txt"}}}),
+        ]
+        for item in endpoints:
+            method, path = item[0], item[1]
+            body = item[2] if len(item) > 2 else None
+            with self.subTest(method=method, path=path):
+                status, _ = self.request(method, path, body=body)
+                self.assertEqual(status, 401)
+
+    def test_sqli_blocked_in_profile_and_search(self):
+        auth = self.login("alice", "learn-alice")
+        # SQLi injection payload in /profile?id=
+        status, res = self.request("GET", "/profile?id=1%20OR%201=1", headers=auth)
+        self.assertEqual(status, 400)
+
+        # SQLi injection in /search?q=
+        status, res = self.request("GET", "/search?q=' OR '1'='1", headers=auth)
+        self.assertEqual(status, 200)
+        # As customer alice, should not leak bob's profile even with SQL injection attempt
+        for row in res:
+            self.assertEqual(row["name"], "TEST_ALICE")
+
+    def test_idor_blocked_in_profile_and_files(self):
+        alice = self.login("alice", "learn-alice")
+        # Alice tries to view Bob's profile
+        status, _ = self.request("GET", "/profile?id=2", headers=alice)
+        self.assertEqual(status, 403)
+
+        # Alice tries to view Bob's files
+        status, _ = self.request("GET", "/files?user=bob&path=receipt.txt", headers=alice)
+        self.assertEqual(status, 403)
+
+    def test_role_spoofing_blocked_in_admin_export(self):
+        alice = self.login("alice", "learn-alice")
+        headers = {**alice, "X-Role": "staff"}
+        status, _ = self.request("GET", "/admin/export", headers=headers)
+        self.assertEqual(status, 403)
+
+    def test_price_tampering_prevented_in_orders(self):
+        alice = self.login("alice", "learn-alice")
+        status, order = self.request("POST", "/orders", {"product": "chair", "price": 1}, headers=alice)
+        self.assertEqual(status, 201)
+        self.assertEqual(order["price"], 5000)
+
+    def test_path_traversal_blocked_in_files(self):
+        alice = self.login("alice", "learn-alice")
+        for bad_path in ("../private/operator-note.txt", "/etc/passwd", "private/operator-note.txt", ".."):
+            with self.subTest(path=bad_path):
+                status, _ = self.request("GET", f"/files?path={bad_path}", headers=alice)
+                self.assertIn(status, (400, 403, 404))
+
+    def test_xss_prevented_in_reviews_view(self):
+        alice = self.login("alice", "learn-alice")
+        payload = "<script>alert(1)</script>"
+        status, _ = self.request("POST", "/reviews", {"product": "chair", "text": payload}, headers=alice)
+        self.assertEqual(status, 201)
+        status, body = self.request("GET", "/reviews/view", headers=alice)
+        self.assertEqual(status, 200)
+        self.assertNotIn("<script>alert(1)</script>", body)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", body)
+
+    def test_assistant_execute_blocks_forbidden_tools_and_unauthorized_files(self):
+        alice = self.login("alice", "learn-alice")
+        # Blocks delete_tree
+        status, _ = self.request("POST", "/assistant/execute", {
+            "decision": {"tool": "delete_tree", "arguments": {"path": "files/alice/receipt.txt"}}
+        }, headers=alice)
+        self.assertEqual(status, 403)
+
+        # Blocks export_profiles
+        status, _ = self.request("POST", "/assistant/execute", {
+            "decision": {"tool": "export_profiles"}
+        }, headers=alice)
+        self.assertEqual(status, 403)
+
+        # Blocks reading Bob's receipt
+        status, _ = self.request("POST", "/assistant/execute", {
+            "decision": {"tool": "read_file", "arguments": {"path": "files/bob/receipt.txt"}}
+        }, headers=alice)
+        self.assertEqual(status, 403)
+
+        # Blocks path traversal to operator note
+        status, _ = self.request("POST", "/assistant/execute", {
+            "decision": {"tool": "read_file", "arguments": {"path": "private/operator-note.txt"}}
+        }, headers=alice)
+        self.assertEqual(status, 403)
+
+    def test_debug_logs_blocked_for_customer_and_passwords_sanitized(self):
+        alice = self.login("alice", "learn-alice")
+        status, _ = self.request("GET", "/debug/logs", headers=alice)
+        self.assertEqual(status, 403)
+
+        staff = self.login("staff", "learn-staff")
+        status, logs = self.request("GET", "/debug/logs", headers=staff)
+        self.assertEqual(status, 200)
+        for entry in logs:
+            body = entry.get("body")
+            if isinstance(body, dict) and "password" in body:
+                self.assertNotEqual(body["password"], "learn-alice")
+                self.assertNotEqual(body["password"], "learn-staff")
+                self.assertEqual(body["password"], "***")
+
+
 if __name__ == "__main__":
     unittest.main()

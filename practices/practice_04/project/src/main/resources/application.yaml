@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: spc-task-service
+
+logging:
+  level:
+    ru.tusman4ik: debug
