@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: spc-task-service
+code-runner:
+  base-url: http://localhost:8080
+task-service:
+  public-base-url: http://localhost:8081
+demo:
+  base-url: http://localhost:8090
+logging:
+  level:
+    ru.tusman4ik: trace
+    root: info

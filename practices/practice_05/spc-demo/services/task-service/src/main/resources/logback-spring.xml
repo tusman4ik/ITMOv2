@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Registers the %clr / %wEx converters and Boot's default log levels. -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!--
+              HH:mm:ss.SSS      short time
+              %clr(%5p)         level, colored by severity (ERROR red, WARN yellow, rest green)
+              [%15.15t]         short thread
+              %-25.25logger{25} short logger, padded to 25 chars
+            -->
+            <pattern>[%d{mm:ss.SSS} %highlight(%-5level) %cyan(%-30.30logger)] %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
