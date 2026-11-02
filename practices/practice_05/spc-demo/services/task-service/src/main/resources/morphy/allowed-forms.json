@@ -1,0 +1,20 @@
+{
+  "_comment": "normalForm -> {meaningId -> allowed form strings}. meaningId = WordformMeaning.getId. Curate with scripts/curate-morphy.py. v1 fail-fast: word missing (or no allowed forms at all) throws MissingWordException",
+  "дерево": {
+    "meanings": {
+      "39535": [
+        "дерево",
+        "дерева",
+        "дереву",
+        "деревом",
+        "дереве",
+        "деревья",
+        "деревьев",
+        "деревьям",
+        "деревьями",
+        "деревьях"
+      ]
+    },
+    "note": "meaning 39535 pinned; archaic plural variants (дерев, деревам, деревами, деревах) excluded. NB: plural nominative/accusative stay ambiguous (дерева == singular genitive, same string) - generator must avoid those slots or accept the exception"
+  }
+}

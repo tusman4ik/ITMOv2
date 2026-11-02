@@ -1,0 +1,10 @@
+services:
+    code-runner:
+      image: tusman4ik/spc-code-runner:latest
+      container_name: code-runner
+      ports:
+        - "8080:8080"
+      privileged: true
+      cgroup: private
+
+      restart: "no"
